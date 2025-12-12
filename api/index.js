@@ -11,6 +11,7 @@ app.use(express.json());
 // MongoDB connection
 let db;
 let linksCollection;
+let client;
 
 // Initialize MongoDB connection
 async function connectToMongoDB() {
@@ -19,23 +20,43 @@ async function connectToMongoDB() {
             throw new Error('MONGODB_URI environment variable is not set');
         }
 
-        const client = new MongoClient(process.env.MONGODB_URI);
-        await client.connect();
-        db = client.db('sms_deeplink_api');
-        linksCollection = db.collection('links');
+        if (!client) {
+            // Add connection options for better reliability
+            const options = {
+                serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+                socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+            };
 
-        // Create index for faster lookups
-        await linksCollection.createIndex({ shortId: 1 }, { unique: true });
+            client = new MongoClient(process.env.MONGODB_URI, options);
+            await client.connect();
 
-        console.log('Connected to MongoDB successfully');
+            // Test the connection
+            await client.db('admin').command({ ping: 1 });
+
+            db = client.db('sms_deeplink_api');
+            linksCollection = db.collection('links');
+
+            // Create index for faster lookups (ignore if already exists)
+            try {
+                await linksCollection.createIndex({ shortId: 1 }, { unique: true });
+            } catch (indexError) {
+                // Index might already exist, that's okay
+                console.log('Index creation skipped (may already exist)');
+            }
+
+            console.log('Connected to MongoDB successfully');
+        }
+
+        return { db, linksCollection };
     } catch (error) {
-        console.error('MongoDB connection error:', error);
+        console.error('MongoDB connection error:', error.message);
+        // Reset client on connection failure
+        client = null;
+        db = null;
+        linksCollection = null;
         throw error;
     }
 }
-
-// Initialize database connection
-connectToMongoDB().catch(console.error);
 
 /**
  * Validates phone number format
@@ -89,6 +110,9 @@ function createSmsDeepLink(phone, message) {
 // POST /api/sms/generate - Generate SMS deep link
 app.post('/api/sms/generate', async (req, res) => {
     try {
+        // Ensure MongoDB connection
+        await connectToMongoDB();
+
         const { phone, message } = req.body;
 
         // Validate input
@@ -163,7 +187,8 @@ app.post('/api/sms/generate', async (req, res) => {
         console.error('Error generating SMS link:', error);
         res.status(500).json({
             success: false,
-            error: 'Internal server error'
+            error: 'Internal server error',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
@@ -171,6 +196,9 @@ app.post('/api/sms/generate', async (req, res) => {
 // GET /s/:shortId - Redirect to SMS deep link and track clicks
 app.get('/s/:shortId', async (req, res) => {
     try {
+        // Ensure MongoDB connection
+        await connectToMongoDB();
+
         const { shortId } = req.params;
 
         // Find link data in MongoDB
@@ -210,6 +238,9 @@ app.get('/s/:shortId', async (req, res) => {
 // GET /api/sms/analytics/:shortId - Get link analytics
 app.get('/api/sms/analytics/:shortId', async (req, res) => {
     try {
+        // Ensure MongoDB connection
+        await connectToMongoDB();
+
         const { shortId } = req.params;
 
         // Find link data in MongoDB
@@ -250,6 +281,9 @@ app.get('/api/sms/analytics/:shortId', async (req, res) => {
 // Health check endpoint
 app.get('/health', async (req, res) => {
     try {
+        // Ensure MongoDB connection
+        await connectToMongoDB();
+
         // Check MongoDB connection
         const dbStatus = db ? 'connected' : 'disconnected';
         let linkCount = 0;
@@ -314,5 +348,7 @@ app.use((error, req, res, next) => {
     });
 });
 
-// Export for Vercel
-module.exports = app;
+// Export handler for Vercel serverless function
+module.exports = (req, res) => {
+    return app(req, res);
+};

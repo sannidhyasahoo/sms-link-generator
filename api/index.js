@@ -316,18 +316,254 @@ app.get('/health', async (req, res) => {
     }
 });
 
+// API Documentation endpoint
+app.get('/docs', (req, res) => {
+    const baseUrl = req.headers.host ? `https://${req.headers.host}` : 'http://localhost:3000';
+
+    res.json({
+        success: true,
+        title: 'SMS Deep Link API Documentation',
+        version: '1.0.0',
+        description: 'Generate SMS deep links with analytics tracking',
+        baseUrl: baseUrl,
+        endpoints: {
+            documentation: {
+                method: 'GET',
+                path: '/docs',
+                description: 'API documentation (this endpoint)',
+                response: {
+                    success: true,
+                    title: 'SMS Deep Link API Documentation',
+                    // ... (this response)
+                }
+            },
+            root: {
+                method: 'GET',
+                path: '/',
+                description: 'API overview and quick reference',
+                response: {
+                    success: true,
+                    message: 'SMS Deep Link API',
+                    endpoints: '{ ... }'
+                }
+            },
+            health: {
+                method: 'GET',
+                path: '/health',
+                description: 'Health check and system status',
+                response: {
+                    success: true,
+                    message: 'SMS Deep Link API is running',
+                    timestamp: '2024-01-01T00:00:00.000Z',
+                    environment: 'vercel',
+                    database: {
+                        status: 'connected',
+                        totalLinks: 0
+                    }
+                }
+            },
+            generateSmsLink: {
+                method: 'POST',
+                path: '/api/sms/generate',
+                description: 'Generate a new SMS deep link with short URL',
+                requestBody: {
+                    required: true,
+                    contentType: 'application/json',
+                    schema: {
+                        phone: {
+                            type: 'string',
+                            required: true,
+                            description: 'Phone number (minimum 10 digits)',
+                            examples: ['+1234567890', '123-456-7890', '(123) 456-7890']
+                        },
+                        message: {
+                            type: 'string',
+                            required: true,
+                            description: 'SMS message text',
+                            examples: ['Hello! Check out this link.', 'Your verification code is 123456']
+                        }
+                    }
+                },
+                responses: {
+                    200: {
+                        description: 'SMS link generated successfully',
+                        example: {
+                            success: true,
+                            data: {
+                                shortUrl: `${baseUrl}/s/abc123`,
+                                deepLink: 'sms:+1234567890?body=Hello%21%20Check%20out%20this%20link.',
+                                shortId: 'abc123',
+                                recipient: '+1234567890',
+                                message: 'Hello! Check out this link.'
+                            }
+                        }
+                    },
+                    400: {
+                        description: 'Invalid input',
+                        examples: {
+                            missingFields: {
+                                success: false,
+                                error: 'Phone number and message are required'
+                            },
+                            invalidPhone: {
+                                success: false,
+                                error: 'Invalid phone number. Must contain at least 10 digits'
+                            },
+                            invalidMessage: {
+                                success: false,
+                                error: 'Message must be a non-empty string'
+                            }
+                        }
+                    },
+                    500: {
+                        description: 'Internal server error',
+                        example: {
+                            success: false,
+                            error: 'Internal server error'
+                        }
+                    }
+                }
+            },
+            redirectShortLink: {
+                method: 'GET',
+                path: '/s/:shortId',
+                description: 'Redirect to SMS deep link and track click analytics',
+                parameters: {
+                    shortId: {
+                        type: 'string',
+                        required: true,
+                        description: 'Short link identifier',
+                        example: 'abc123'
+                    }
+                },
+                responses: {
+                    302: {
+                        description: 'Redirect to SMS deep link',
+                        headers: {
+                            Location: 'sms:+1234567890?body=Hello%21%20Check%20out%20this%20link.'
+                        }
+                    },
+                    404: {
+                        description: 'Short link not found',
+                        example: {
+                            success: false,
+                            error: 'Short link not found'
+                        }
+                    },
+                    500: {
+                        description: 'Internal server error',
+                        example: {
+                            success: false,
+                            error: 'Internal server error'
+                        }
+                    }
+                }
+            },
+            getAnalytics: {
+                method: 'GET',
+                path: '/api/sms/analytics/:shortId',
+                description: 'Get analytics data for a specific short link',
+                parameters: {
+                    shortId: {
+                        type: 'string',
+                        required: true,
+                        description: 'Short link identifier',
+                        example: 'abc123'
+                    }
+                },
+                responses: {
+                    200: {
+                        description: 'Analytics data retrieved successfully',
+                        example: {
+                            success: true,
+                            data: {
+                                shortId: 'abc123',
+                                recipient: '+1234567890',
+                                message: 'Hello! Check out this link.',
+                                shortUrl: `${baseUrl}/s/abc123`,
+                                deepLink: 'sms:+1234567890?body=Hello%21%20Check%20out%20this%20link.',
+                                clickCount: 5,
+                                createdAt: '2024-01-01T00:00:00.000Z',
+                                lastClickedAt: '2024-01-01T12:00:00.000Z',
+                                updatedAt: '2024-01-01T12:00:00.000Z'
+                            }
+                        }
+                    },
+                    404: {
+                        description: 'Short link not found',
+                        example: {
+                            success: false,
+                            error: 'Short link not found'
+                        }
+                    },
+                    500: {
+                        description: 'Internal server error',
+                        example: {
+                            success: false,
+                            error: 'Internal server error'
+                        }
+                    }
+                }
+            }
+        },
+        usage: {
+            curl: {
+                generateLink: `curl -X POST ${baseUrl}/api/sms/generate \\
+  -H "Content-Type: application/json" \\
+  -d '{"phone": "+1234567890", "message": "Hello! Check out this link."}'`,
+                getAnalytics: `curl ${baseUrl}/api/sms/analytics/abc123`,
+                healthCheck: `curl ${baseUrl}/health`
+            },
+            javascript: {
+                generateLink: `fetch('${baseUrl}/api/sms/generate', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    phone: '+1234567890',
+    message: 'Hello! Check out this link.'
+  })
+}).then(res => res.json()).then(data => console.log(data));`,
+                getAnalytics: `fetch('${baseUrl}/api/sms/analytics/abc123')
+  .then(res => res.json())
+  .then(data => console.log(data));`
+            }
+        },
+        notes: {
+            phoneNumberFormat: 'Phone numbers are automatically cleaned and validated. Supports international formats with + prefix.',
+            smsDeepLinks: 'Generated deep links use the sms: protocol which opens the default SMS app on most devices.',
+            analytics: 'Click tracking is automatic when users visit short links. Analytics include click count and timestamps.',
+            security: 'Short IDs are cryptographically secure random strings to prevent enumeration attacks.',
+            database: 'All data is stored in MongoDB with proper indexing for fast lookups.'
+        },
+        support: {
+            repository: 'https://github.com/your-repo/sms-deeplink-api',
+            issues: 'https://github.com/your-repo/sms-deeplink-api/issues',
+            contact: 'api-support@yourcompany.com'
+        }
+    });
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
+    const baseUrl = req.headers.host ? `https://${req.headers.host}` : 'http://localhost:3000';
+
     res.json({
         success: true,
         message: 'SMS Deep Link API',
+        version: '1.0.0',
+        description: 'Generate SMS deep links with analytics tracking',
         endpoints: {
-            generate: 'POST /api/sms/generate',
-            redirect: 'GET /s/:shortId',
-            analytics: 'GET /api/sms/analytics/:shortId',
-            health: 'GET /health'
+            docs: 'GET /docs - Complete API documentation',
+            generate: 'POST /api/sms/generate - Generate SMS deep link',
+            redirect: 'GET /s/:shortId - Redirect to SMS app',
+            analytics: 'GET /api/sms/analytics/:shortId - Get link analytics',
+            health: 'GET /health - System health check'
         },
-        documentation: 'https://github.com/your-repo/sms-deeplink-api'
+        quickStart: {
+            documentation: `${baseUrl}/docs`,
+            example: `curl -X POST ${baseUrl}/api/sms/generate -H "Content-Type: application/json" -d '{"phone": "+1234567890", "message": "Hello World!"}'`
+        },
+        repository: 'https://github.com/your-repo/sms-deeplink-api'
     });
 });
 

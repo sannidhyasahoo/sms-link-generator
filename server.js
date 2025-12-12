@@ -282,6 +282,107 @@ app.get('/health', async (req, res) => {
     }
 });
 
+// API Documentation endpoint
+app.get('/docs', (req, res) => {
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+    res.json({
+        success: true,
+        title: 'SMS Deep Link API Documentation',
+        version: '1.0.0',
+        description: 'Generate SMS deep links with analytics tracking',
+        baseUrl: baseUrl,
+        endpoints: {
+            documentation: {
+                method: 'GET',
+                path: '/docs',
+                description: 'API documentation (this endpoint)'
+            },
+            health: {
+                method: 'GET',
+                path: '/health',
+                description: 'Health check and system status'
+            },
+            generateSmsLink: {
+                method: 'POST',
+                path: '/api/sms/generate',
+                description: 'Generate a new SMS deep link with short URL',
+                requestBody: {
+                    phone: 'string (required) - Phone number with at least 10 digits',
+                    message: 'string (required) - SMS message text'
+                },
+                example: {
+                    request: {
+                        phone: '+1234567890',
+                        message: 'Hello! Check out this link.'
+                    },
+                    response: {
+                        success: true,
+                        data: {
+                            shortUrl: `${baseUrl}/s/abc123`,
+                            deepLink: 'sms:+1234567890?body=Hello%21%20Check%20out%20this%20link.',
+                            shortId: 'abc123',
+                            recipient: '+1234567890',
+                            message: 'Hello! Check out this link.'
+                        }
+                    }
+                }
+            },
+            redirectShortLink: {
+                method: 'GET',
+                path: '/s/:shortId',
+                description: 'Redirect to SMS deep link and track clicks',
+                example: `${baseUrl}/s/abc123`
+            },
+            getAnalytics: {
+                method: 'GET',
+                path: '/api/sms/analytics/:shortId',
+                description: 'Get analytics data for a specific short link',
+                example: {
+                    url: `${baseUrl}/api/sms/analytics/abc123`,
+                    response: {
+                        success: true,
+                        data: {
+                            shortId: 'abc123',
+                            recipient: '+1234567890',
+                            message: 'Hello! Check out this link.',
+                            clickCount: 5,
+                            createdAt: '2024-01-01T00:00:00.000Z',
+                            lastClickedAt: '2024-01-01T12:00:00.000Z'
+                        }
+                    }
+                }
+            }
+        },
+        usage: {
+            curl: {
+                generateLink: `curl -X POST ${baseUrl}/api/sms/generate -H "Content-Type: application/json" -d '{"phone": "+1234567890", "message": "Hello World!"}'`,
+                getAnalytics: `curl ${baseUrl}/api/sms/analytics/abc123`,
+                healthCheck: `curl ${baseUrl}/health`
+            }
+        }
+    });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+    res.json({
+        success: true,
+        message: 'SMS Deep Link API',
+        version: '1.0.0',
+        endpoints: {
+            docs: 'GET /docs - Complete API documentation',
+            generate: 'POST /api/sms/generate - Generate SMS deep link',
+            redirect: 'GET /s/:shortId - Redirect to SMS app',
+            analytics: 'GET /api/sms/analytics/:shortId - Get link analytics',
+            health: 'GET /health - System health check'
+        },
+        documentation: `${baseUrl}/docs`
+    });
+});
+
 // 404 handler for unknown routes
 app.use('*', (req, res) => {
     res.status(404).json({

@@ -69,8 +69,8 @@ function validatePhoneNumber(phone) {
     // Remove all non-digit characters
     const cleanPhone = phone.replace(/\D/g, '');
 
-    // Must be at least 10 digits
-    return cleanPhone.length >= 10;
+    // Must have at least 1 digit
+    return cleanPhone.length >= 1;
 }
 
 /**
@@ -134,7 +134,7 @@ app.post('/api/sms/generate', async (req, res) => {
         if (!validatePhoneNumber(phone)) {
             return res.status(400).json({
                 success: false,
-                error: 'Invalid phone number. Must contain at least 10 digits'
+                error: 'Invalid phone number. Must contain at least 1 digit'
             });
         }
 
@@ -373,8 +373,8 @@ app.get('/docs', (req, res) => {
                         phone: {
                             type: 'string',
                             required: true,
-                            description: 'Phone number (minimum 10 digits)',
-                            examples: ['+1234567890', '123-456-7890', '(123) 456-7890']
+                            description: 'Phone number (any number of digits)',
+                            examples: ['+1234567890', '123-456-7890', '(123) 456-7890', '911', '123']
                         },
                         message: {
                             type: 'string',
@@ -407,7 +407,7 @@ app.get('/docs', (req, res) => {
                             },
                             invalidPhone: {
                                 success: false,
-                                error: 'Invalid phone number. Must contain at least 10 digits'
+                                error: 'Invalid phone number. Must contain at least 1 digit'
                             },
                             invalidMessage: {
                                 success: false,
@@ -529,7 +529,7 @@ app.get('/docs', (req, res) => {
             }
         },
         notes: {
-            phoneNumberFormat: 'Phone numbers are automatically cleaned and validated. Supports international formats with + prefix.',
+            phoneNumberFormat: 'Phone numbers are automatically cleaned and validated. Supports any number of digits and international formats with + prefix.',
             smsDeepLinks: 'Generated deep links use the sms: protocol which opens the default SMS app on most devices.',
             analytics: 'Click tracking is automatic when users visit short links. Analytics include click count and timestamps.',
             security: 'Short IDs are cryptographically secure random strings to prevent enumeration attacks.',

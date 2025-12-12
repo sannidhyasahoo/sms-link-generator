@@ -49,8 +49,8 @@ function validatePhoneNumber(phone) {
     // Remove all non-digit characters
     const cleanPhone = phone.replace(/\D/g, '');
 
-    // Must be at least 10 digits
-    return cleanPhone.length >= 10;
+    // Must have at least 1 digit
+    return cleanPhone.length >= 1;
 }
 
 /**
@@ -111,7 +111,7 @@ app.post('/api/sms/generate', async (req, res) => {
         if (!validatePhoneNumber(phone)) {
             return res.status(400).json({
                 success: false,
-                error: 'Invalid phone number. Must contain at least 10 digits'
+                error: 'Invalid phone number. Must contain at least 1 digit'
             });
         }
 
@@ -308,7 +308,7 @@ app.get('/docs', (req, res) => {
                 path: '/api/sms/generate',
                 description: 'Generate a new SMS deep link with short URL',
                 requestBody: {
-                    phone: 'string (required) - Phone number with at least 10 digits',
+                    phone: 'string (required) - Phone number with any number of digits',
                     message: 'string (required) - SMS message text'
                 },
                 example: {
